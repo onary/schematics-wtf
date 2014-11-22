@@ -1,8 +1,8 @@
 """
 Tools for generating forms based on Schematics Models
 """
+import time
 import datetime
-from operator import itemgetter
 from schematics.models import Model
 try:
     from schematics.serialize import wholelist, whitelist, blacklist
@@ -10,6 +10,7 @@ except ImportError:
     from schematics.transforms import wholelist, whitelist, blacklist
 from wtforms import fields as f, validators, Form, ValidationError
 from wtforms.widgets import HiddenInput, TextInput
+
 
 def converts(*args):
     def _inner(func):
@@ -20,9 +21,10 @@ def converts(*args):
 
 def date_format(date_format):
     message = 'Date string must match {}.'.format(date_format)
+
     def _format(form, field):
         if not isinstance(field.data, basestring):
-           raise ValidationError(message)
+            raise ValidationError(message)
         try:
             value = time.strptime(field.data, date_format)[:3]
             value = datetime.date(*value)
@@ -30,11 +32,13 @@ def date_format(date_format):
             raise ValidationError(message)
     return _format
 
+
 def time_format(time_format):
     message = 'Time string must match {}.'.format(time_format)
+
     def _format(form, field):
         if not isinstance(field.data, basestring):
-           raise ValidationError(message)
+            raise ValidationError(message)
         try:
             value = time.strptime(field.data, time_format)[3:5]
             value = datetime.time(*value)
@@ -65,36 +69,37 @@ class ModelConverter(object):
             'validators': [],
             'filters': [],
             'default': field.default,
+            '_name': field_name,
         }
 
         if hidden:
-           kwargs['widget'] = HiddenInput()
+            kwargs['widget'] = HiddenInput()
 
         if model._data[field_name]:
-           kwargs['default'] = model._data[field_name]
+            kwargs['default'] = model._data[field_name]
 
         if field_args:
-           kwargs.update(field_args)
+            kwargs.update(field_args)
 
         if field.required:
-           kwargs['validators'].append(validators.Required())
+            kwargs['validators'].append(validators.Required())
         else:
-           kwargs['validators'].append(validators.Optional())
+            kwargs['validators'].append(validators.Optional())
 
         if field.choices:
-           choices = [(x,x) for x in field.choices]
-           kwargs['choices'] = choices
-           if kwargs.pop('multiple', False):
-               return f.SelectMultipleField(**kwargs)
-           return f.SelectField(**kwargs)
+            choices = [(x, x) for x in field.choices]
+            kwargs['choices'] = choices
+            if kwargs.pop('multiple', False):
+                return f.SelectMultipleField(**kwargs)
+            return f.SelectField(**kwargs)
 
         ftype = type(field).__name__
 
         if hasattr(field, 'to_form_field'):
-           return field.to_form_field(model, kwargs)
+            return field.to_form_field(model, kwargs)
 
         if ftype in self.converters:
-           return self.converters[ftype](model, field, kwargs)
+            return self.converters[ftype](model, field, kwargs)
 
     @classmethod
     def _string_common(cls, model, field, kwargs):
@@ -185,7 +190,8 @@ class ModelConverter(object):
     @converts('ListType')
     def conv_List(self, model, field, kwargs):
         if isinstance(field.field, ReferenceField):
-            return ModelSelectMultipleField(model=field.field.document_type, **kwargs)
+            return ModelSelectMultipleField(model=field.field.document_type,
+                                            **kwargs)
         if field.field.choices:
             kwargs['multiple'] = True
             return self.convert(model, field.field, kwargs)
@@ -229,9 +235,12 @@ class ModelConverter(object):
 
 from schematics.types import StringType, IntType, BooleanType
 
+
 class BootstrapTimePickerOptions(Model):
-    template = StringType(choices=['dropdown', 'modal', 'false'], default='dropdown')
-    minuteStep = IntType(choices=[1,2,3,4,5,6,10,12,15,20,30], default=15)
+    template = StringType(choices=['dropdown', 'modal', 'false'],
+                          default='dropdown')
+    minuteStep = IntType(choices=[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30],
+                         default=15)
     secondsStep = IntType(default=15, min_value=1, max_value=30)
     showSeconds = BooleanType(default=False)
     defaultTime = StringType(default='current')
@@ -245,6 +254,7 @@ class BootstrapTimePickerOptions(Model):
             pass
         return u""
 
+
 class BootstrapTimePickerWidget(TextInput):
     def __init__(self, options=None):
         self.options = options or BootstrapTimePickerOptions()
@@ -256,6 +266,7 @@ class BootstrapTimePickerWidget(TextInput):
            <span class="add-on"><i class="icon-time"></i></span>
           </div>
         """.format(options=unicode(self.options))
+
 
 class BootstrapDatePickerWidget(TextInput):
     def __init__(self, js_format):
@@ -272,20 +283,25 @@ class BootstrapDatePickerWidget(TextInput):
         kwargs['data-date-format'] = self.js_format
         return super(BootstrapDatePickerWidget, self).__call__(field, **kwargs)
 
+
 class BootstrapModelConverter(ModelConverter):
 
     @converts('DateType')
     def conv_Date(self, model, field, kwargs):
         kwargs['widget'] = BootstrapDatePickerWidget(field.js_format)
-        return super(BootstrapModelConverter, self).conv_Date(model, field, kwargs)
+        return super(BootstrapModelConverter, self
+                     ).conv_Date(model, field, kwargs)
 
     @converts('TimeType')
     def conv_Time(self, model, field, kwargs):
         options = kwargs.pop('bootstrap-options', BootstrapTimePickerOptions())
         kwargs['widget'] = BootstrapTimePickerWidget(options)
-        return super(BootstrapModelConverter, self).conv_Time(model, field, kwargs)
+        return super(BootstrapModelConverter, self
+                     ).conv_Time(model, field, kwargs)
 
-def model_fields(model, only=None, exclude=None, hidden=None, field_args=None, converter=None):
+
+def model_fields(model, only=None, exclude=None, hidden=None,
+                 field_args=None, converter=None):
     """
     Generate a dictionary of fields for a given Django model.
 
@@ -298,30 +314,33 @@ def model_fields(model, only=None, exclude=None, hidden=None, field_args=None, c
     converter = converter or ModelConverter()
     field_args = field_args or {}
     gottago = wholelist()
-    field_dict = { }
+    field_dict = {}
 
     if only:
-       gottago = whitelist(*only)
+        gottago = whitelist(*only)
     elif exclude:
-       gottago = blacklist(*exclude)
+        gottago = blacklist(*exclude)
 
     for field_name, field in model._fields.items():
-       if gottago(field_name, None): continue
-       ishidden = False
-       if hidden:
-          if field_name in hidden: ishidden=True
+        if gottago(field_name, None):
+            continue
+        ishidden = False
+        if hidden:
+            if field_name in hidden:
+                ishidden = True
 
-       form_field = converter.convert(model, field, field_name, field_args.get(field_name), hidden=ishidden)
+        form_field = converter.convert(model, field, field_name,
+                                       field_args.get(field_name),
+                                       hidden=ishidden)
 
-       if form_field is not None:
-          field_dict[field_name] = form_field
+        if form_field is not None:
+            field_dict[field_name] = form_field
 
-    from pprint import pprint
-    #pprint(field_dict)
     return field_dict
 
 
-def model_form(model, base_class=Form, only=None, exclude=None, hidden=None, field_args=None, converter=None):
+def model_form(model, base_class=Form, only=None, exclude=None,
+               hidden=None, field_args=None, converter=None):
     """
     Create a wtforms Form for a given Schematic Model schema::
 
@@ -346,11 +365,15 @@ def model_form(model, base_class=Form, only=None, exclude=None, hidden=None, fie
         A converter to generate the fields based on the model properties. If
         not set, ``ModelConverter`` is used.
     """
-#   if field_args is None and m:
-#      field_args = model._data
     import inspect
     if inspect.isclass(model):
-       model = model()
-    field_dict = model_fields(model, only, exclude, hidden, field_args, converter)
-    field_dict['model_class'] = model
-    return type(model.__class__.__name__ + 'Form', (base_class,), field_dict)
+        model = model()
+
+    attrs = {'__module__': model.__module__,
+             '__unicode__': model.__class__.__name__ + 'Form',
+             'model_class': model}
+
+    field_dict = model_fields(model, only, exclude, hidden, field_args,
+                              converter)
+    attrs.update(field_dict)
+    return type(model.__class__.__name__ + 'Form', (base_class,), attrs)
