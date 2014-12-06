@@ -301,7 +301,7 @@ class BootstrapModelConverter(ModelConverter):
 
 
 def model_fields(model, only=None, exclude=None, hidden=None,
-                 field_args=None, converter=None, additional_fields=None):
+                 field_args=None, converter=None):
     """
     Generate a dictionary of fields for a given Django model.
 
@@ -336,19 +336,11 @@ def model_fields(model, only=None, exclude=None, hidden=None,
         if form_field is not None:
             field_dict[field_name] = form_field
 
-    for extra_field in additional_fields:
-        form_field = converter.convert(model, extra_field, extra_field.name,
-                                       field_args.get(extra_field.name),
-                                       hidden=ishidden)
-
-        if form_field is not None:
-            field_dict[extra_field.name] = form_field
-
     return field_dict
 
 
 def model_form(model, base_class=Form, only=None, exclude=None, hidden=None,
-               field_args=None, converter=None, additional_fields=None):
+               field_args=None, converter=None):
     """
     Create a wtforms Form for a given Schematic Model schema::
 
@@ -375,13 +367,15 @@ def model_form(model, base_class=Form, only=None, exclude=None, hidden=None,
     """
     import inspect
     if inspect.isclass(model):
+        _model = model
         model = model()
 
     attrs = {'__module__': model.__module__,
              '__unicode__': model.__class__.__name__ + 'Form',
-             'model_class': model}
+             'model_class': model,
+             '_model': _model}
 
     field_dict = model_fields(model, only, exclude, hidden, field_args,
-                              converter, additional_fields)
+                              converter)
     attrs.update(field_dict)
     return type(model.__class__.__name__ + 'Form', (base_class,), attrs)
